@@ -25,7 +25,7 @@ class Proyeccion(models.Model):
     pelicula = models.ForeignKey(Pelicula, on_delete=models.CASCADE)
     fecha_comienzo = models.DateField()
     fecha_finalizacion = models.DateField()
-    hora = models.DateTimeField()
+    hora = models.TimeField()
     estado = models.CharField(max_length=25)
 
 
