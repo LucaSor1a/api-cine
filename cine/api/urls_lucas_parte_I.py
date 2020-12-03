@@ -1,8 +1,9 @@
-from django.urls import path, re_path
+from django.urls import path
 from .views_lucas_parte_I import Peliculas
 
 
 urlpatterns = [
     path('peliculas/', Peliculas.todas, name='peliculas'),
-    re_path(r'peliculas/(?P<inicio>\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3(0|1)))/(?P<fin>\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3(0|1)))/$', Peliculas.todas_rango, name='peliculas por fecha'),
+    path('peliculas/<str:inicio>/<str:fin>/', Peliculas.todas_rango, name='peliculas por fecha'),
+    path('peliculas/<int:pk>/<str:inicio>/<str:fin>/', Peliculas.una_rango, name='pelicula por fecha'),
 ]
