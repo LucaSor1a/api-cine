@@ -1,9 +1,14 @@
 from django.urls import path
-from .views_lucas_parte_I import Peliculas
+from .views_lucas_parte_I import Peliculas, PeliculasRango, PeliculaRango
+from .views_lucas_parte_II import Proyecciones, ProyeccionesRango, ProyeccionFecha
 
 
 urlpatterns = [
-    path('peliculas/', Peliculas.todas, name='peliculas'),
-    path('peliculas/<str:inicio>/<str:fin>/', Peliculas.todas_rango, name='peliculas por fecha'),
-    path('peliculas/<int:pk>/<str:inicio>/<str:fin>/', Peliculas.una_rango, name='pelicula por fecha'),
+    path('peliculas/', Peliculas.as_view(), name='Peliculas'),
+    path('peliculas/<str:inicio>/<str:fin>/', PeliculasRango.as_view(), name='Peliculas por fecha'),
+    path('peliculas/<int:pk>/<str:inicio>/<str:fin>/', PeliculaRango.as_view(), name='Pelicula por fecha'),
+
+    path('proyecciones/', Proyecciones.as_view(), name='Proyecciones'),
+    path('proyecciones/<int:pk>/<str:fecha>/', ProyeccionFecha.as_view(), name='Proyeccion en una fecha'),
+    path('proyecciones/<str:inicio>/<str:fin>/', ProyeccionesRango.as_view(), name='Proyecciones por fecha'),
 ]
