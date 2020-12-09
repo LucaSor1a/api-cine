@@ -2,9 +2,10 @@ from django.db import models
 from django.core.exceptions import ValidationError
 
 
-def validate_state(estado):
-    if estado != 'Activo' and estado != 'No activo':
-            raise ValidationError(f'Estado has wrong value: {estado}. Estado should be Activo or Inactivo')
+ESTADOS = [
+    ('A', 'Activo'),
+    ('N', 'No activo')
+]
 
 
 # Create your models here.
@@ -16,7 +17,7 @@ class Pelicula(models.Model):
     descripcion = models.CharField(max_length=350)
     genero = models.CharField(max_length=50)
     clasificacion = models.CharField(max_length=10)
-    estado = models.CharField(max_length=25, validators=[validate_state])
+    estado = models.CharField(max_length=25, choices=ESTADOS, default='N')
     fecha_comienzo = models.DateField()
     fecha_finalizacion = models.DateField()
 
@@ -25,7 +26,7 @@ class Sala(models.Model):
     """ Modelo para las Salas en la base de datos """
 
     nombre = models.CharField(max_length=50)
-    estado = models.CharField(max_length=25)
+    estado = models.CharField(max_length=25, choices=[('H', 'Habilitada'), ('D', 'Deshabilitada'), ('E', 'Eliminada')], default='D')
     filas = models.IntegerField()
     asientos = models.IntegerField()
 
@@ -38,7 +39,7 @@ class Proyeccion(models.Model):
     fecha_comienzo = models.DateField()
     fecha_finalizacion = models.DateField()
     hora = models.TimeField()
-    estado = models.CharField(max_length=25, validators=[validate_state])
+    estado = models.CharField(max_length=25, choices=ESTADOS, default='N')
 
 
 class Reserva(models.Model):

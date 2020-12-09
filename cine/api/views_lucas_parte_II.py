@@ -3,17 +3,41 @@ from rest_framework.response import Response
 from .serializers_lucas_parte_I import ProyeccionSerializer, PeliculaSerializer, SalaSerializer, ReservaSerializer, ProyeccionHorarioSerializer
 from .models import Pelicula, Proyeccion, Sala, Reserva
 from rest_framework import status
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from django.db.models import Q
 from .views_lucas_parte_I import comprobacion_fechas
 
 
 class Proyecciones(APIView):
-    """ Vista de todas las proyecciones de las peliculas activas + POST + PUT """
+    """ Vista de todas las proyecciones de las peliculas activas hoy + POST + PUT """
+
+    def superposicion_proyeccion(self, pelicula, sala, fecha, hora):
+        """ Comprueba que no haya superposicion de proyecciones en una misma sala """
+
+        proyecciones = Proyeccion.objects.filter(sala=sala).filter(estado__in=('A', 'Activo')).filter(Q(fecha_comienzo__lte=fecha) & Q(fecha_finalizacion__gte=fecha))
+        json_proyecciones = ProyeccionSerializer(proyecciones, many=True)
+        pelicula = PeliculaSerializer(pelicula)
+        duracion = pelicula.data['duracion']
+        for dic in json_proyecciones.data:
+            print(dic)
+            pelicula = Pelicula.objects.get(pk=dic['pelicula'])
+            json_pelicula = PeliculaSerializer(pelicula)
+            inicio_nueva = hora
+            inicio_vieja = datetime.strptime(dic['hora'], '%H:%M:%S').time()
+            fin_nueva = (datetime.combine(date(1, 1, 1), hora) + timedelta(minutes=duracion + 30)).time()
+            fin_vieja = (datetime.strptime(dic['hora'], '%H:%M:%S') + timedelta(minutes=json_pelicula.data['duracion'] + 30)).time()
+            doce = datetime.strptime('12:00:00', '%H:%M:%S').time()
+            print(fin_nueva, inicio_vieja, inicio_nueva, fin_vieja)
+            if not (fin_nueva <= inicio_vieja or inicio_nueva >= fin_vieja):
+                return True
+            elif (inicio_vieja > doce and fin_vieja < doce) and (inicio_nueva > doce and fin_nueva < doce):
+                return True
+        return False
+
 
     def get(self, request):
         hoy = datetime.today()
-        peliculas = Pelicula.objects.filter(estado='Activo')
+        peliculas = Pelicula.objects.filter(estado__in=('A', 'Activo'))
         peliculas = PeliculaSerializer(peliculas, many=True)
         resultado = []
         for dic in peliculas.data:
@@ -36,6 +60,8 @@ class Proyecciones(APIView):
         if proyeccion.is_valid():
             if not comprobacion_fechas(proyeccion.validated_data['fecha_comienzo'].strftime('%Y-%m-%d') , proyeccion.validated_data['fecha_finalizacion'].strftime('%Y-%m-%d')):
                 return Response({'state': 'failure', 'request': request.data, 'error': {'fecha_finalizacion': ['Fecha finalizacion has wrong value. Fecha finalizacion shoud be greater than Fecha comienzo']}}, status=status.HTTP_400_BAD_REQUEST)
+            if self.superposicion_proyeccion(proyeccion.validated_data['pelicula'], proyeccion.validated_data['sala'], proyeccion.validated_data['fecha_comienzo'], proyeccion.validated_data['hora']):
+                return Response({'state': 'failure', 'request': request.data, 'error': {'proyeccion': ['Sala already occupied']}}, status=status.HTTP_400_BAD_REQUEST)
             proyeccion.save()
             return Response({'state': 'successful', 'request': proyeccion.data})
         else:
@@ -51,6 +77,8 @@ class Proyecciones(APIView):
                 return Response({'error': 'NOT FOUND', 'request': {'id': 'None'}}, status=status.HTTP_404_NOT_FOUND)
         proyeccion = ProyeccionSerializer(objeto, data=request.data)
         if proyeccion.is_valid():
+            if self.superposicion_proyeccion(proyeccion.validated_data['pelicula'], proyeccion.validated_data['sala'], proyeccion.validated_data['fecha_comienzo'], proyeccion.validated_data['hora']):
+                return Response({'state': 'failure', 'request': request.data, 'error': {'proyeccion': ['Sala already occupied']}}, status=status.HTTP_400_BAD_REQUEST)
             proyeccion.save()
             return Response({'state': 'successful', 'request': proyeccion.data})
         else:
@@ -62,13 +90,13 @@ class ProyeccionesRango(APIView):
 
     def get(self, request, inicio, fin):
         if comprobacion_fechas(inicio, fin):
-            peliculas = Pelicula.objects.filter(estado='Activo')
+            peliculas = Pelicula.objects.filter(estado__in=('A', 'Activo'))
             peliculas = PeliculaSerializer(peliculas, many=True)
             resultado = []
             for dic in peliculas.data:
                 pelicula_id = dic['id']
                 pelicula_nombre = dic['nombre']
-                proyecciones = Proyeccion.objects.filter(pelicula=pelicula_id, estado='Activo').exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
+                proyecciones = Proyeccion.objects.filter(pelicula=pelicula_id, estado__in=('A', 'Activo')).exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
                 json_proyecciones = ProyeccionHorarioSerializer(proyecciones, many=True)
                 if json_proyecciones.data != []:
                     resultado.append({

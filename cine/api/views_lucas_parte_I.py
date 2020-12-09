@@ -33,7 +33,7 @@ class Peliculas(APIView):
     """ Vista de todas las peliculas Activas """
 
     def get(self, request):
-        pelicula = Pelicula.objects.filter(estado='Activo')
+        pelicula = Pelicula.objects.filter(estado__in=('A', 'Activo'))
         json_pelicula = PeliculaSerializer(pelicula, many=True)
         return Response(json_pelicula.data)
 
@@ -57,7 +57,7 @@ class PeliculaRango(APIView):
         if comprobacion_fechas(inicio, fin):
             try:
                 pelicula = Pelicula.objects.get(pk=pk)
-                proyecciones = Proyeccion.objects.filter(pelicula=pk, estado='Activo').exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
+                proyecciones = Proyeccion.objects.filter(pelicula=pk, estado__in=('A', 'Activo')).exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
                 json_pelicula = PeliculaSerializer(pelicula)
                 json_proyecciones = ProyeccionHorarioSerializer(proyecciones, many=True)
                 respuesta = {
