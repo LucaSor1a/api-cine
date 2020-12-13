@@ -9,7 +9,7 @@ urlpatterns = [
     path('peliculas/<int:pk>/<str:inicio>/<str:fin>/', PeliculaRango.as_view(), name='Pelicula por fecha'),
 
     # Endpoint de consulta de salas
-    path('salas/', SalaView.as_view(), name='salas'),
+    path('salas/', SalaView.as_view(), name='Salas'),
 
     # Endpoint de consultas de proyeccion
     path('proyecciones/', Proyecciones.as_view(), name='Proyecciones'),
@@ -17,5 +17,5 @@ urlpatterns = [
     path('proyecciones/<str:inicio>/<str:fin>/', ProyeccionesRango.as_view(), name='Proyecciones por fecha'),
 
     # Endpoint de consulta de butacas
-    path('butacas/', ButacaView.as_view(), name='butacas'),
+    path('butacas/', ButacaView.as_view(), name='Butacas'),
 ]

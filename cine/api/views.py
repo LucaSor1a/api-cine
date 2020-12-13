@@ -1,24 +1,11 @@
-from .models import Sala, Reserva, Proyeccion
-from .serializers import SalaSerializer, ReservaSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from datetime import datetime
-from rest_framework.views import APIView
 from rest_framework import status
-from rest_framework.response import Response
-from datetime import datetime
-import re
-from .serializers import ProyeccionSerializer, PeliculaSerializer, ProyeccionHorarioSerializer
-from .models import Pelicula, Proyeccion
 from django.db.models import Q
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .serializers import ProyeccionSerializer, PeliculaSerializer, SalaSerializer, ReservaSerializer, ProyeccionHorarioSerializer
 from .models import Pelicula, Proyeccion, Sala, Reserva
-from rest_framework import status
+from .serializers import ProyeccionSerializer, PeliculaSerializer, SalaSerializer, ReservaSerializer, ProyeccionHorarioSerializer
 from datetime import datetime, timedelta, date
-from django.db.models import Q
-from .views_lucas_parte_I import comprobacion_fechas
+import re
 
 
 def comprobacion_fechas(inicio, fin=None):
@@ -85,6 +72,7 @@ class PeliculaRango(APIView):
 
 
 class SalaView(APIView):
+    """ Vista de todas las salas o de una sala especifica + POST + PUT + DELETE """
 
     # cambiar data request
 
@@ -173,6 +161,8 @@ class Proyecciones(APIView):
     
 
     def rango_correcto(self, proyeccion, pelicula):
+        """ Se fija que las fechas de la proyeccion esten dentro de las fechas de la pelicula """
+
         if proyeccion['fecha_comienzo'] >= datetime.strptime(pelicula['fecha_comienzo'], '%Y-%m-%d').date() and proyeccion['fecha_finalizacion'] <= datetime.strptime(pelicula['fecha_finalizacion'], '%Y-%m-%d').date():
             return True
         else:
@@ -315,6 +305,7 @@ class ProyeccionFecha(APIView):
 
 
 class ButacaView(APIView):
+    """ Lista de todas las butacas o una butaca especifica + POST + PUT """
 
     def get(self, request):
 
@@ -386,6 +377,7 @@ class ButacaView(APIView):
                 )
 
     def asiento_isvalid(self, instance, fila=0, asiento=0):
+        """ Validacion de los asientos existen en la sala """
 
         self.asiento_errors = {}
 
@@ -411,6 +403,7 @@ class ButacaView(APIView):
         return fila_validity and asiento_validity
 
     def fecha_valid(self, instancia, fecha):
+        """ Validacion de que la butaca es vendida dentro del rango de fechas de la proyeccion """
 
         self.fecha_errors = {}
 
@@ -425,6 +418,8 @@ class ButacaView(APIView):
             return False
 
     def validate_repetition(self, fecha, fila, asiento, pk=None):
+        """ Validar de que no se venda la misma butaca el mismo dia """
+
         self.repetition_errors = {}
         existente = Reserva.objects.filter(fecha=fecha, fila=fila, asiento=asiento)
         ids = [i["id"] for i in existente.values()]
