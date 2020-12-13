@@ -1,5 +1,4 @@
 from django.db import models
-from django.core.exceptions import ValidationError
 
 
 ESTADOS = [
@@ -25,8 +24,14 @@ class Pelicula(models.Model):
 class Sala(models.Model):
     """ Modelo para las Salas en la base de datos """
 
+    estados = [
+        ('H', 'habilitada'),
+        ('D', 'deshabilitada'),
+        ('E', 'eliminada')
+        ]
+
     nombre = models.CharField(max_length=50)
-    estado = models.CharField(max_length=25, choices=[('H', 'Habilitada'), ('D', 'Deshabilitada'), ('E', 'Eliminada')], default='D')
+    estado = models.CharField(max_length=25, choices=estados, default='D')
     filas = models.IntegerField()
     asientos = models.IntegerField()
 
