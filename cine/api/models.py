@@ -14,8 +14,15 @@ class Pelicula(models.Model):
 
 
 class Sala(models.Model):
+
+    estados = [
+        ("H", "habilitada"),
+        ("D", "deshabilitada"),
+        ("E", "eliminada")
+        ]
+
     nombre = models.CharField(max_length=50)
-    estado = models.CharField(max_length=25)
+    estado = models.CharField(max_length=25, choices=estados)
     filas = models.IntegerField()
     asientos = models.IntegerField()
 
