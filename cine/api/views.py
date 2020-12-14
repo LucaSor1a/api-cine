@@ -74,70 +74,61 @@ class PeliculaRango(APIView):
 class SalaView(APIView):
     """ Vista de todas las salas o de una sala especifica + POST + PUT + DELETE """
 
-    # cambiar data request
-
     def get(self, request, pk=None):
-
         if pk:
             sala = Sala.objects.filter(pk=pk)
+            if sala.count() == 0:
+                return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
         else:
             sala = Sala.objects.all()
-
         response = SalaSerializer(sala, many=True)
         return Response(response.data)
 
     def post(self, request):
-
         data = request.data
-
         serializer = SalaSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            return Response(data)
-        return Response(serializer.errors, status=400)
+            return Response({'state': 'successful', 'request': serializer.data})
+        return Response({'state': 'failure', 'request': data, 'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk=None):
-
         data = request.data
         if pk:
             pk = pk
         elif "pk" in data.keys():
             pk = data.pop("pk")
         else:
-            return Response("pk required", status=400)
-
-        sala = Sala.objects.get(pk=pk)
+            return Response({'state': 'failure', 'request': data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            sala = Sala.objects.get(pk=pk)
+        except Sala.DoesNotExist:
+            return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
         serializer = SalaSerializer(sala, data=data)
-
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({'state': 'successful', 'request': serializer.data})
         else:
-            return Response(serializer.errors, status=400)
+            return Response({'state': 'failure', 'request': data, 'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
-
         if "pk" in request.data.keys():
             pk = request.data["pk"]
             try:
                 sala = Sala.objects.get(pk=pk)
             except Sala.DoesNotExist:
-                error_msg = "sala pk=" + str(pk) + " does not exist"
-                return Response(error_msg, status=400)
+                return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
         else:
-            error_msg = str(request.data) + "   no private key provided"
-            return Response(error_msg, status=400)
-
+            return Response({'state': 'failure', 'request': request.data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
         if "force" in request.data.keys() and request.data["force"] is True:
             sala.delete()
-            response = "sala pk=" + str(pk) + " eliminada"
+            response = {'state': 'successful'}
         else:
-            sala.estado = "eliminada"
-            response = SalaSerializer(sala).data
-
+            sala.estado = "E"
+            response = {'state': 'successful', 'request': SalaSerializer(sala).data}
         sala.save()
         return Response(response)
-
+        
 
 class Proyecciones(APIView):
     """ Vista de todas las proyecciones de las peliculas activas hoy + POST + PUT """
@@ -212,11 +203,10 @@ class Proyecciones(APIView):
     def put(self, request):
         try:
             objeto = Proyeccion.objects.get(pk=request.data['id'])
-        except (Proyeccion.DoesNotExist, KeyError):
-            try:
-                return Response({'error': 'NOT FOUND', 'request': {'id': request.data['id']}}, status=status.HTTP_404_NOT_FOUND)
-            except KeyError:
-                return Response({'error': 'NOT FOUND', 'request': {'id': 'None'}}, status=status.HTTP_404_NOT_FOUND)
+        except Proyeccion.DoesNotExist:
+            return Response({'error': 'NOT FOUND', 'request': {'id': request.data['id']}}, status=status.HTTP_404_NOT_FOUND)
+        except KeyError:
+            return Response({'state': 'failure', 'request': data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
         proyeccion = ProyeccionSerializer(objeto, data=request.data)
         id = int(proyeccion.initial_data['id'])
         if proyeccion.is_valid():
@@ -313,74 +303,48 @@ class ButacaView(APIView):
     """ Lista de todas las butacas o una butaca especifica + POST + PUT """
 
     def get(self, request, pk=None):
-
         if pk:
             butaca = Reserva.objects.filter(pk=pk)
+            if butaca.count() == 0:
+                return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
         else:
             butaca = Reserva.objects.all()
-
         response = ReservaSerializer(butaca, many=True)
         return Response(response.data)
 
     def post(self, request):
-
         data = request.data
-
         serializer = ReservaSerializer(data=data)
-
-        if serializer.is_valid() and self.asiento_isvalid(data["proyeccion"],
-                                                          data["fila"],
-                                                          data["asiento"]):
+        if serializer.is_valid() and self.asiento_isvalid(data["proyeccion"], data["fila"], data["asiento"]):
             serializer.save()
-            return Response(data)
-        return Response(serializer.errors or self.asiento_errors, status=400)
+            return Response({'state': 'successful', 'request': serializer.data})
+        return Response({'state': 'failure', 'request': data, 'error': serializer.errors or self.asiento_errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk=None):
-
         data = request.data
         if pk:
             pk = pk
         elif "pk" in data:
             pk = data.pop("pk")
         else:
-            return Response("pk required", status=400)
-
+            return Response({'state': 'failure', 'request': data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
         butaca = Reserva.objects.get(pk=pk)
         serializer = ReservaSerializer(butaca, data=data)
-
         if not serializer.is_valid():
-            return Response(serializer.errors, status=400)
-
-        do_filas = self.asiento_isvalid(
-                                    butaca.proyeccion,
-                                    data.get("fila"),
-                                    data.get("asiento")
-                                    )
-
-        do_date = self.fecha_valid(
-                                    butaca.proyeccion,
-                                    data.get("fecha")
-                                    )
-
-        is_not_repeated = self.validate_repetition(
-                                    data.get("fecha"),
-                                    data.get("fila"),
-                                    data.get("asiento"),
-                                    pk=pk
-                                    )
-
+            return Response({'state': 'failure', 'request': data, 'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        do_filas = self.asiento_isvalid(butaca.proyeccion, data.get("fila"), data.get("asiento"))
+        do_date = self.fecha_valid(butaca.proyeccion, data.get("fecha"))
+        is_not_repeated = self.validate_repetition(data.get("fecha"), data.get("fila"), data.get("asiento"), pk=pk)
         if do_filas and do_date and is_not_repeated:
             serializer.save()
-            return Response(serializer.data)
+            return Response({'state': 'successful', 'request': serializer.data})
         else:
-            return Response(
-                {
-                    **self.asiento_errors,
-                    **self.fecha_errors,
-                    **self.repetition_errors
-                    },
-                status=400
-                )
+            response = {
+                **self.asiento_errors,
+                **self.fecha_errors,
+                **self.repetition_errors
+                }
+            return Response({'state': 'failure', 'request': data, 'error': response}, status=status.HTTP_400_BAD_REQUEST)
 
     def asiento_isvalid(self, instance, fila=0, asiento=0):
         """ Validacion de los asientos existen en la sala """
@@ -439,3 +403,31 @@ class ButacaView(APIView):
                 "ya existe una reserva en ese dia para esa butaca"
             ]
             return False
+
+
+class ReportesRango(APIView):
+    """ Vista de todas las Butacas vendidias en un rango de tiempo """
+
+    def get(self, request, inicio, fin):
+        if comprobacion_fechas(inicio, fin):
+            butacas = Reserva.objects.filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
+            butacas = ReservaSerializer(butacas, many=True)
+            return Response(butacas.data)
+        else:
+            return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReportesProyeccionRango(APIView):
+    """ Vista de todas las Butacas vendidias de una proyeccion en un rango de tiempo """
+
+    def get(self, request, pk, inicio, fin):
+        try:
+            objecto = Proyeccion.objects.get(pk=pk)
+        except Proyeccion.DoesNotExist:
+            return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
+        if comprobacion_fechas(inicio, fin):
+            butacas = Reserva.objects.filter(proyeccion=pk).filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
+            butacas = ReservaSerializer(butacas, many=True)
+            return Response(butacas.data)
+        else:
+            return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import Peliculas, PeliculasRango, PeliculaRango, Proyecciones, ProyeccionesRango, ProyeccionFecha, SalaView, ButacaView
+from .views import Peliculas, PeliculasRango, PeliculaRango, Proyecciones, ProyeccionesRango, ProyeccionFecha, SalaView, ButacaView, ReportesRango, ReportesProyeccionRango
 
 
 urlpatterns = [
@@ -20,4 +20,8 @@ urlpatterns = [
     # Endpoint de consulta de butacas
     path('butacas/', ButacaView.as_view(), name='Butacas'),
     path('butacas/<int:pk>/', ButacaView.as_view(), name='Butacas'),
+
+    # Endpoint de reportes
+    path('reportes/<str:inicio>/<str:fin>/', ReportesRango.as_view(), name='Reporte de butacas por fecha'),
+    path('reportes/<int:pk>/<str:inicio>/<str:fin>/', ReportesProyeccionRango.as_view(), name='Reporte de butacas por proyeccion por fecha'),
 ]

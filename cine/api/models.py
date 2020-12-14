@@ -25,9 +25,9 @@ class Sala(models.Model):
     """ Modelo para las Salas en la base de datos """
 
     estados = [
-        ('H', 'habilitada'),
-        ('D', 'deshabilitada'),
-        ('E', 'eliminada')
+        ('H', 'Habilitada'),
+        ('D', 'Deshabilitada'),
+        ('E', 'Eliminada')
         ]
 
     nombre = models.CharField(max_length=50)
