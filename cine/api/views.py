@@ -76,10 +76,9 @@ class SalaView(APIView):
 
     # cambiar data request
 
-    def get(self, request):
+    def get(self, request, pk=None):
 
-        if "pk" in request.data.keys():
-            pk = request.data["pk"]
+        if pk:
             sala = Sala.objects.filter(pk=pk)
         else:
             sala = Sala.objects.all()
@@ -97,10 +96,16 @@ class SalaView(APIView):
             return Response(data)
         return Response(serializer.errors, status=400)
 
-    def put(self, request):
+    def put(self, request, pk=None):
 
         data = request.data
-        pk = data.pop("pk")
+        if pk:
+            pk = pk
+        elif "pk" in data.keys():
+            pk = data.pop("pk")
+        else:
+            return Response("pk required", status=400)
+
         sala = Sala.objects.get(pk=pk)
         serializer = SalaSerializer(sala, data=data)
 
@@ -120,7 +125,7 @@ class SalaView(APIView):
                 error_msg = "sala pk=" + str(pk) + " does not exist"
                 return Response(error_msg, status=400)
         else:
-            error_msg = str(request.data) + "<br>no private key provided"
+            error_msg = str(request.data) + "   no private key provided"
             return Response(error_msg, status=400)
 
         if "force" in request.data.keys() and request.data["force"] is True:
@@ -158,7 +163,7 @@ class Proyecciones(APIView):
                 elif (inicio_vieja > doce and fin_vieja < doce) and (inicio_nueva > doce and fin_nueva < doce):
                     return True
         return False
-    
+
 
     def rango_correcto(self, proyeccion, pelicula):
         """ Se fija que las fechas de la proyeccion esten dentro de las fechas de la pelicula """
@@ -307,10 +312,9 @@ class ProyeccionFecha(APIView):
 class ButacaView(APIView):
     """ Lista de todas las butacas o una butaca especifica + POST + PUT """
 
-    def get(self, request):
+    def get(self, request, pk=None):
 
-        if "pk" in request.data.keys():
-            pk = request.data["pk"]
+        if pk:
             butaca = Reserva.objects.filter(pk=pk)
         else:
             butaca = Reserva.objects.all()
@@ -329,12 +333,14 @@ class ButacaView(APIView):
                                                           data["asiento"]):
             serializer.save()
             return Response(data)
-        return Response(serializer.errors or self.asiento_errors, status=400)  # ver validacion en serializador
+        return Response(serializer.errors or self.asiento_errors, status=400)
 
-    def put(self, request):
+    def put(self, request, pk=None):
 
         data = request.data
-        if "pk" in data:
+        if pk:
+            pk = pk
+        elif "pk" in data:
             pk = data.pop("pk")
         else:
             return Response("pk required", status=400)

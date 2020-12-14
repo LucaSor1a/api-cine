@@ -10,6 +10,7 @@ urlpatterns = [
 
     # Endpoint de consulta de salas
     path('salas/', SalaView.as_view(), name='Salas'),
+    path('salas/<int:pk>/', SalaView.as_view(), name='Salas'),
 
     # Endpoint de consultas de proyeccion
     path('proyecciones/', Proyecciones.as_view(), name='Proyecciones'),
@@ -18,4 +19,5 @@ urlpatterns = [
 
     # Endpoint de consulta de butacas
     path('butacas/', ButacaView.as_view(), name='Butacas'),
+    path('butacas/<int:pk>/', ButacaView.as_view(), name='Butacas'),
 ]
