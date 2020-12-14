@@ -42,33 +42,31 @@ class PeliculasRango(APIView):
     """ Vista de las peliculas presentes en la base de datos con fechas dentro del rango """
 
     def get(self, request, inicio, fin):
-        if comprobacion_fechas(inicio, fin):
-            peliculas = Pelicula.objects.exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
-            json = PeliculaSerializer(peliculas, many=True)
-            return Response(json.data)
-        else:
+        if not comprobacion_fechas(inicio, fin):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+        peliculas = Pelicula.objects.exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
+        json = PeliculaSerializer(peliculas, many=True)
+        return Response(json.data)            
 
 
 class PeliculaRango(APIView):
     """ Vista de las proyecciones activas de una pelicula dentro de un rango de fechas """
 
     def get(self, request, pk, inicio, fin):
-        if comprobacion_fechas(inicio, fin):
-            try:
-                pelicula = Pelicula.objects.get(pk=pk)
-                proyecciones = Proyeccion.objects.filter(pelicula=pk, estado__in=('A', 'Activo')).exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
-                json_pelicula = PeliculaSerializer(pelicula)
-                json_proyecciones = ProyeccionHorarioSerializer(proyecciones, many=True)
-                respuesta = {
-                    'info_pelicula': json_pelicula.data,
-                    'proyecciones': json_proyecciones.data
-                }
-                return Response(respuesta)
-            except Pelicula.DoesNotExist:
-                return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
-        else:
+        if not comprobacion_fechas(inicio, fin):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            pelicula = Pelicula.objects.get(pk=pk)
+            proyecciones = Proyeccion.objects.filter(pelicula=pk, estado__in=('A', 'Activo')).exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
+            json_pelicula = PeliculaSerializer(pelicula)
+            json_proyecciones = ProyeccionHorarioSerializer(proyecciones, many=True)
+            respuesta = {
+                'info_pelicula': json_pelicula.data,
+                'proyecciones': json_proyecciones.data
+            }
+            return Response(respuesta)
+        except Pelicula.DoesNotExist:
+            return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
 
 
 class SalaView(APIView):
@@ -227,76 +225,74 @@ class ProyeccionesRango(APIView):
     """ Vista de todas las proyecciones de peliculas activas en un rango de fechas """
 
     def get(self, request, inicio, fin):
-        if comprobacion_fechas(inicio, fin):
-            peliculas = Pelicula.objects.filter(estado__in=('A', 'Activo'))
-            peliculas = PeliculaSerializer(peliculas, many=True)
-            resultado = []
-            for dic in peliculas.data:
-                pelicula_id = dic['id']
-                pelicula_nombre = dic['nombre']
-                proyecciones = Proyeccion.objects.filter(pelicula=pelicula_id, estado__in=('A', 'Activo')).exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
-                json_proyecciones = ProyeccionHorarioSerializer(proyecciones, many=True)
-                if json_proyecciones.data != []:
-                    resultado.append({
-                        'pelicula': {
-                            'id': pelicula_id,
-                            'nombre': pelicula_nombre
-                        },
-                        'proyecciones': json_proyecciones.data
-                    })
-            return Response(resultado)
-        else:
+        if not comprobacion_fechas(inicio, fin):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+        peliculas = Pelicula.objects.filter(estado__in=('A', 'Activo'))
+        peliculas = PeliculaSerializer(peliculas, many=True)
+        resultado = []
+        for dic in peliculas.data:
+            pelicula_id = dic['id']
+            pelicula_nombre = dic['nombre']
+            proyecciones = Proyeccion.objects.filter(pelicula=pelicula_id, estado__in=('A', 'Activo')).exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
+            json_proyecciones = ProyeccionHorarioSerializer(proyecciones, many=True)
+            if json_proyecciones.data != []:
+                resultado.append({
+                    'pelicula': {
+                        'id': pelicula_id,
+                        'nombre': pelicula_nombre
+                    },
+                    'proyecciones': json_proyecciones.data
+                })
+        return Response(resultado)
 
 
 class ProyeccionFecha(APIView):
     """ Vista de todas las proyecciones de una pelicula + su informacion sobre la sala y butacas """
 
     def get(self, request, pk, fecha):
-        if comprobacion_fechas(fecha):
-            try:
-                proyecciones = Proyeccion.objects.get(id=pk, fecha_comienzo__lte=fecha, fecha_finalizacion__gte=fecha)
-            except Proyeccion.DoesNotExist:
-                return Response({'error': 'NOT FOUND', 'request': {'id': pk, 'fecha': fecha}}, status=status.HTTP_404_NOT_FOUND)
-            json_proyecciones = ProyeccionSerializer(proyecciones)
-            dic = json_proyecciones.data
-            pelicula = Pelicula.objects.get(pk=dic['pelicula'])
-            json_pelicula = PeliculaSerializer(pelicula)
-            sala = Sala.objects.get(pk=dic['sala'])
-            json_sala = SalaSerializer(sala)
-            butacas = Reserva.objects.filter(proyeccion=dic['id'])
-            json_butacas = ReservaSerializer(butacas, many=True)
-            butacas_posiciones = {}
-            c = 0
-            butacas = json_butacas.data
-            for i in range(json_sala.data['filas']):
-                for j in range(json_sala.data['asientos']):
-                    for butaca in butacas:
-                        if butaca['fila'] - 1 == i and butaca['asiento'] - 1 == j:
-                            butacas_posiciones[c] = {
-                                    'fila': butaca['fila'],
-                                    'asiento': butaca['asiento'],
-                                    'estado': 'reservado',
-                            }
-                            butacas.remove(butaca)
-                    try:
-                        butacas_posiciones[c]
-                    except:
-                        butacas_posiciones[c] = {
-                            'fila': i + 1,
-                            'asiento': j + 1,
-                            'estado': 'libre',
-                        }
-                    finally:
-                        c += 1
-            resultado = {
-                'pelicula': json_pelicula.data,
-                'sala': json_sala.data,
-                'butacas': butacas_posiciones,
-            }
-            return Response(resultado)
-        else:
+        if not comprobacion_fechas(fecha):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha': fecha}}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            proyecciones = Proyeccion.objects.get(id=pk, fecha_comienzo__lte=fecha, fecha_finalizacion__gte=fecha)
+        except Proyeccion.DoesNotExist:
+            return Response({'error': 'NOT FOUND', 'request': {'id': pk, 'fecha': fecha}}, status=status.HTTP_404_NOT_FOUND)
+        json_proyecciones = ProyeccionSerializer(proyecciones)
+        dic = json_proyecciones.data
+        pelicula = Pelicula.objects.get(pk=dic['pelicula'])
+        json_pelicula = PeliculaSerializer(pelicula)
+        sala = Sala.objects.get(pk=dic['sala'])
+        json_sala = SalaSerializer(sala)
+        butacas = Reserva.objects.filter(proyeccion=dic['id'])
+        json_butacas = ReservaSerializer(butacas, many=True)
+        butacas_posiciones = {}
+        c = 0
+        butacas = json_butacas.data
+        for i in range(json_sala.data['filas']):
+            for j in range(json_sala.data['asientos']):
+                for butaca in butacas:
+                    if butaca['fila'] - 1 == i and butaca['asiento'] - 1 == j:
+                        butacas_posiciones[c] = {
+                                'fila': butaca['fila'],
+                                'asiento': butaca['asiento'],
+                                'estado': 'reservado',
+                        }
+                        butacas.remove(butaca)
+                try:
+                    butacas_posiciones[c]
+                except:
+                    butacas_posiciones[c] = {
+                        'fila': i + 1,
+                        'asiento': j + 1,
+                        'estado': 'libre',
+                    }
+                finally:
+                    c += 1
+        resultado = {
+            'pelicula': json_pelicula.data,
+            'sala': json_sala.data,
+            'butacas': butacas_posiciones,
+        }
+        return Response(resultado)
 
 
 class ButacaView(APIView):
@@ -409,12 +405,11 @@ class ReportesRango(APIView):
     """ Vista de todas las Butacas vendidias en un rango de tiempo """
 
     def get(self, request, inicio, fin):
-        if comprobacion_fechas(inicio, fin):
-            butacas = Reserva.objects.filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
-            butacas = ReservaSerializer(butacas, many=True)
-            return Response(butacas.data)
-        else:
+        if not comprobacion_fechas(inicio, fin):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+        butacas = Reserva.objects.filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
+        butacas = ReservaSerializer(butacas, many=True)
+        return Response(butacas.data)
 
 
 class ReportesProyeccionRango(APIView):
@@ -425,9 +420,8 @@ class ReportesProyeccionRango(APIView):
             objecto = Proyeccion.objects.get(pk=pk)
         except Proyeccion.DoesNotExist:
             return Response({'error': 'NOT FOUND', 'request': {'id': pk}}, status=status.HTTP_404_NOT_FOUND)
-        if comprobacion_fechas(inicio, fin):
-            butacas = Reserva.objects.filter(proyeccion=pk).filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
-            butacas = ReservaSerializer(butacas, many=True)
-            return Response(butacas.data)
-        else:
+        if not comprobacion_fechas(inicio, fin):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+        butacas = Reserva.objects.filter(proyeccion=pk).filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
+        butacas = ReservaSerializer(butacas, many=True)
+        return Response(butacas.data)
