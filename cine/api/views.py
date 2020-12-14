@@ -126,7 +126,7 @@ class SalaView(APIView):
             response = {'state': 'successful', 'request': SalaSerializer(sala).data}
         sala.save()
         return Response(response)
-        
+
 
 class Proyecciones(APIView):
     """ Vista de todas las proyecciones de las peliculas activas hoy + POST + PUT """
@@ -311,10 +311,23 @@ class ButacaView(APIView):
     def post(self, request):
         data = request.data
         serializer = ReservaSerializer(data=data)
-        if serializer.is_valid() and self.asiento_isvalid(data["proyeccion"], data["fila"], data["asiento"]):
+        if not serializer.is_valid():
+            return Response({'state': 'failure', 'request': data, 'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        do_filas = self.asiento_isvalid(data.get("proyeccion"), data.get("fila"), data.get("asiento"))
+        do_date = self.fecha_valid(data.get("proyeccion"), data.get("fecha"))
+        is_not_repeated = self.validate_repetition(data.get("fecha"), data.get("fila"), data.get("asiento"))
+
+        if do_date and do_filas and is_not_repeated:
             serializer.save()
             return Response({'state': 'successful', 'request': serializer.data})
-        return Response({'state': 'failure', 'request': data, 'error': serializer.errors or self.asiento_errors}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            response = {
+                **self.asiento_errors,
+                **self.fecha_errors,
+                **self.repetition_errors
+                }
+            return Response({'state': 'failure', 'request': data, 'error': response}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk=None):
         data = request.data
@@ -326,8 +339,10 @@ class ButacaView(APIView):
             return Response({'state': 'failure', 'request': data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
         butaca = Reserva.objects.get(pk=pk)
         serializer = ReservaSerializer(butaca, data=data)
+
         if not serializer.is_valid():
             return Response({'state': 'failure', 'request': data, 'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
         do_filas = self.asiento_isvalid(butaca.proyeccion, data.get("fila"), data.get("asiento"))
         do_date = self.fecha_valid(butaca.proyeccion, data.get("fecha"))
         is_not_repeated = self.validate_repetition(data.get("fecha"), data.get("fila"), data.get("asiento"), pk=pk)
@@ -368,14 +383,17 @@ class ButacaView(APIView):
 
         return fila_validity and asiento_validity
 
-    def fecha_valid(self, instancia, fecha):
+    def fecha_valid(self, instance, fecha):
         """ Validacion de que la butaca es vendida dentro del rango de fechas de la proyeccion """
 
         self.fecha_errors = {}
 
+        if isinstance(instance, int):
+            instance = Proyeccion.objects.get(pk=instance)
+
         fecha = datetime.strptime(fecha, "%Y-%m-%dT%H:%M:%SZ")
 
-        if instancia.fecha_comienzo <= datetime.date(fecha) <= instancia.fecha_finalizacion:
+        if instance.fecha_comienzo <= datetime.date(fecha) <= instance.fecha_finalizacion:
             return True
         else:
             self.fecha_errors["fecha de proyeccion"] = [
@@ -425,3 +443,41 @@ class ReportesProyeccionRango(APIView):
         butacas = Reserva.objects.filter(proyeccion=pk).filter(Q(fecha__gte=inicio) & Q(fecha__lte=fin))
         butacas = ReservaSerializer(butacas, many=True)
         return Response(butacas.data)
+
+
+class ReporteRanking(APIView):
+
+    def get(self, request, inicio, fin):
+        if comprobacion_fechas(inicio, fin):
+            proyecciones = Proyeccion.objects.exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
+        else:
+            return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
+
+        lista_vendidas = []
+        for item in proyecciones:
+            vendidas = Reserva.objects.filter(proyeccion=item.pk).count()
+            lista_vendidas.append((item.pk, vendidas))
+
+        lista_vendidas.sort(key=lambda tup: tup[1], reverse=True)
+
+        return Response(lista_vendidas[:5])
+
+
+class ReporteEntradas(APIView):
+
+    def get(self, request):
+
+        peliculas = Pelicula.objects.filter(estado__in=("A", "Activo"))
+
+        ventas = {}
+
+        for item in peliculas:
+            proyecciones = Proyeccion.objects.filter(pelicula=item.pk)
+            entradas_vendidas = []
+            for p in proyecciones:
+                butacas_vendidas = Reserva.objects.filter().values()
+                entradas_vendidas += list(butacas_vendidas)
+
+            ventas.update({item.pk: entradas_vendidas})
+
+        return Response(ventas)
