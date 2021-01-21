@@ -12,7 +12,7 @@ def comprobacion_fechas(inicio, fin=None):
     """ Comprueba que las fechas ingresadas son validas """
 
     fecha = r'\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3(0|1))'
-    if fin != None:
+    if fin is not None:
         if re.match(fecha, inicio) and re.match(fecha, fin):
             inicio = datetime.strptime(inicio, '%Y-%m-%d')
             fin = datetime.strptime(fin, '%Y-%m-%d')
@@ -46,7 +46,7 @@ class PeliculasRango(APIView):
             return Response({'error': 'BAD REQUEST', 'request': {'fecha_comienzo': inicio, 'fecha_finalizacion': fin}}, status=status.HTTP_400_BAD_REQUEST)
         peliculas = Pelicula.objects.exclude((Q(fecha_comienzo__gt=inicio) & Q(fecha_comienzo__gt=fin)) | (Q(fecha_finalizacion__lt=inicio) & Q(fecha_finalizacion__lt=fin)))
         json = PeliculaSerializer(peliculas, many=True)
-        return Response(json.data)            
+        return Response(json.data)
 
 
 class PeliculaRango(APIView):
@@ -153,7 +153,6 @@ class Proyecciones(APIView):
                     return True
         return False
 
-
     def rango_correcto(self, proyeccion, pelicula):
         """ Se fija que las fechas de la proyeccion esten dentro de las fechas de la pelicula """
 
@@ -161,7 +160,6 @@ class Proyecciones(APIView):
             return True
         else:
             return False
-
 
     def get(self, request):
         hoy = datetime.today()
@@ -186,7 +184,7 @@ class Proyecciones(APIView):
     def post(self, request):
         proyeccion = ProyeccionSerializer(data=request.data)
         if proyeccion.is_valid():
-            if not comprobacion_fechas(proyeccion.validated_data['fecha_comienzo'].strftime('%Y-%m-%d') , proyeccion.validated_data['fecha_finalizacion'].strftime('%Y-%m-%d')):
+            if not comprobacion_fechas(proyeccion.validated_data['fecha_comienzo'].strftime('%Y-%m-%d'), proyeccion.validated_data['fecha_finalizacion'].strftime('%Y-%m-%d')):
                 return Response({'state': 'failure', 'request': request.data, 'error': {'fecha_finalizacion': ['Fecha finalizacion has wrong value. Fecha finalizacion shoud be greater than Fecha comienzo']}}, status=status.HTTP_400_BAD_REQUEST)
             if self.superposicion_proyeccion(proyeccion.validated_data['pelicula'], proyeccion.validated_data['sala'], proyeccion.validated_data['fecha_comienzo'], proyeccion.validated_data['hora']):
                 return Response({'state': 'failure', 'request': request.data, 'error': {'proyeccion': ['Sala already occupied']}}, status=status.HTTP_400_BAD_REQUEST)
@@ -204,11 +202,11 @@ class Proyecciones(APIView):
         except Proyeccion.DoesNotExist:
             return Response({'error': 'NOT FOUND', 'request': {'id': request.data['id']}}, status=status.HTTP_404_NOT_FOUND)
         except KeyError:
-            return Response({'state': 'failure', 'request': data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'state': 'failure', 'request': request.data, 'error': {'pk': ['This field is required']}}, status=status.HTTP_400_BAD_REQUEST)
         proyeccion = ProyeccionSerializer(objeto, data=request.data)
         id = int(proyeccion.initial_data['id'])
         if proyeccion.is_valid():
-            if not comprobacion_fechas(proyeccion.validated_data['fecha_comienzo'].strftime('%Y-%m-%d') , proyeccion.validated_data['fecha_finalizacion'].strftime('%Y-%m-%d')):
+            if not comprobacion_fechas(proyeccion.validated_data['fecha_comienzo'].strftime('%Y-%m-%d'), proyeccion.validated_data['fecha_finalizacion'].strftime('%Y-%m-%d')):
                 return Response({'state': 'failure', 'request': request.data, 'error': {'fecha_finalizacion': ['Fecha finalizacion has wrong value. Fecha finalizacion shoud be greater than Fecha comienzo']}}, status=status.HTTP_400_BAD_REQUEST)
             if self.superposicion_proyeccion(proyeccion.validated_data['pelicula'], proyeccion.validated_data['sala'], proyeccion.validated_data['fecha_comienzo'], proyeccion.validated_data['hora'], id):
                 return Response({'state': 'failure', 'request': request.data, 'error': {'proyeccion': ['Sala already occupied']}}, status=status.HTTP_400_BAD_REQUEST)
@@ -279,7 +277,7 @@ class ProyeccionFecha(APIView):
                         butacas.remove(butaca)
                 try:
                     butacas_posiciones[c]
-                except:
+                except Exception:
                     butacas_posiciones[c] = {
                         'fila': i + 1,
                         'asiento': j + 1,
