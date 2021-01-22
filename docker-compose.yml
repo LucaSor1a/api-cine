@@ -24,7 +24,7 @@ services:
   movies:
     image: "fervillano/movies:1.1"
     ports:
-      - "3500:3500"
+      - "8000:8080"
     links:
       - mysql
     depends_on:
