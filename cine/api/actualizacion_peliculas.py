@@ -42,7 +42,7 @@ def adapt(service_list):
     return service_list
 
 
-def do_update(self):
+def do_update():
 
     # get al servicio y a la BD para ver las peliculas
     service_response = requests.get('http://localhost:8080/api/pelicula/')
